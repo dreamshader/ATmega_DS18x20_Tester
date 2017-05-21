@@ -33,12 +33,11 @@
 //     setup sensor resolution via menu (serial & LCD)
 //     reset 1W bus via menu (serial & LCD)
 //     reset search via menu (serial & LCD)
-//     via menu (serial & LCD)
 //     output crc and crc-info in device scan/sensor test
 //     "click" hint in brightness and contrast submenu
 //     dieplay message if no sensor in testrun  found
 //     display message that dig pins are swapped
-//     cosmetics: serial output degree sign in minicom
+//     serial output degree sign in minicom
 //
 //
 // history:
@@ -79,6 +78,7 @@
   #define USE_EEPROM
   #define USE_MENU
   #define USE_DIG_ENCODER
+  #define UART_REMOTE_CONTROL
 #else
   #ifdef __AVR_ATmega168__
     // first we'll see whether tis mc makes sense ...
@@ -92,6 +92,7 @@
       #undef USE_EEPROM
       #undef USE_MENU
       #undef USE_DIG_ENCODER
+      #undef UART_REMOTE_CONTROL
       #undef F(a)
       #define F(a) a
     #else
@@ -102,6 +103,7 @@
         #undef USE_EEPROM
         #undef USE_MENU
         #undef USE_DIG_ENCODER
+        #undef UART_REMOTE_CONTROL
         #undef F(a)
         #define F(a) a        
       #else      
@@ -127,13 +129,23 @@
 #include <ClickEncoder.h>
 #endif // USE_DIG_ENCODER
 
+#ifdef UART_REMOTE_CONTROL
+#include "uart_api.h"
+#endif // UART_REMOTE_CONTROL
 
 // 
 // ------------------------ VERSION INFORMATION -------------------------
 //
-const byte majorRelease = 0;
-const byte minorRelease = 4;
-const byte patchLevel   = 0;
+static byte firmwareMajorRelease = 0;
+static byte firmwareMinorRelease = 4;
+static byte firmwarePatchLevel   = 0;
+
+static byte protocolMajorRelease = 0;
+static byte protocolMinorRelease = 1;
+
+static byte hardwareMajorRelease = 1;
+static byte hardwareMinorRelease = 1;
+
 //
 // ------------------------- BASIC DEFINITIONS --------------------------
 //
@@ -179,7 +191,6 @@ const byte patchLevel   = 0;
 #ifdef USE_SERIAL
 // serial settings
 #define SERIAL_BAUD             38400      // serial console/debug
-#define UART_CTLBUF_SIZE           16      // 16 byte for UART remote control buffer
 #endif // USE_SERIAL
 
 #define PIN_LCD_TYPE               A0      // soldering jumper to select type of LCD
@@ -311,7 +322,7 @@ ClickEncoder *encoder;      // encoder with click button
 // common menu stuff ... 
 //
 
-static int menuStatus;
+int menuStatus;
 static int encoderMenuStatus;
 
 #define DO_MAIN_MENU                   0
@@ -550,6 +561,12 @@ void restoreSettings( void )
 //
 // -------------------------------- END EEPROM SECTION ---------------------------------
 //
+
+byte makeVersion( byte major, byte minor )
+{
+  return( (major << 4) | minor  );
+}
+
 //
 // ----------------------------------- GENERAL SETUP -----------------------------------
 //
@@ -2191,121 +2208,649 @@ void uartEnablePowerSafe( void )
   menuStatus = DO_MAIN_MENU;
   uartFlush();  
 }
+//
 
+
+#ifdef UART_REMOTE_CONTROL
 //
 // ---------------------------- UART REMOTE CONTROL HANDLING ---------------------------
 //
+//
 
-#define UART_CTL_E_TIMEOUT   -3
-#define UART_CTL_E_OVERFLOW  -2
-#define UART_CTL_E_OK         0
-#define UART_CTL_TIMEOUT    500  // 500 ms timeout to read from UART
+static byte protocol_version   = 0x04;
 
-byte _uartErrorCode;
 
-void uartControlRunCommand(byte cmdbuf[], int buflen)
+void uartControlRun( bool reset )
 {
-
-}
-
-bool uartControlCheckCommand(byte cmdbuf[], int buflen)
-{
-  bool retVal;
-
-  if ( buflen >= 5 )
+  static byte controlBuf[UART_CTLBUF_SIZE+1];
+  static int cmdBufferIndex = 0;
+  static int telegramIndex = 0;
+  static unsigned long lastReadSuccess;
+  static bool cmdCompleted = false;
+  static struct _uart_telegram_ command;
+  struct _uart_telegram_ response;
+  
+  if( Serial.available() )
   {
-    retVal = true;
+ 
+    if( cmdBufferIndex < UART_CTLBUF_SIZE )
+    {
+      controlBuf[cmdBufferIndex] = Serial.read();
+      lastReadSuccess = millis();
+
+      switch( cmdBufferIndex + 1 )
+      {
+        case 1:
+          command._opcode = controlBuf[cmdBufferIndex];
+          break;
+        case 2:
+          command._crc8 = controlBuf[cmdBufferIndex];
+          break;
+        case 3:
+          command._sequence = controlBuf[cmdBufferIndex];
+          break;
+        case 4:
+          command._status = controlBuf[cmdBufferIndex];
+          break;
+        case 5:
+          command._arg_cnt = controlBuf[cmdBufferIndex];
+          break;
+        default:
+          if( (telegramIndex < command._arg_cnt) &&
+              (telegramIndex < REMOTE_COMMAND_MAX_ARGS) )
+          {
+            command._args[telegramIndex++] = controlBuf[cmdBufferIndex];
+          }
+          break;
+      }
+  
+      cmdBufferIndex++;
+    }
+    else
+    {
+      byte discardData = Serial.read();
+      lastReadSuccess = millis();
+    }
+  }
+
+  if( cmdBufferIndex >= REMOTE_COMMAND_HDR_LENGTH )
+  {
+    // we have at least a complete header
+
+    if( telegramIndex == command._arg_cnt )
+    {
+      cmdCompleted = true;
+      _uartErrorCode = UART_CTL_E_OK;
+      cmdBufferIndex = 0;
+      telegramIndex = 0;
+      lastReadSuccess = 0;
+      uartFlush();  
+      if( uartControlRunCommand( &command, &response ) )
+      {
+        // successfully done
+      }
+      else
+      {
+        // something has gone wrong
+      }
+
+      if( uartSendResponse( &command, &response ) )
+      {
+        // successfully done
+      }
+      else
+      {
+        // something has gone wrong
+      }
+
+      clearTelegram( &command );
+      clearTelegram( &response );
+      memset( controlBuf, '\0', sizeof(controlBuf) );
+
+    }
+    else
+    {
+      if( telegramIndex > command._arg_cnt )
+      {
+        cmdCompleted = true;
+        _uartErrorCode = UART_CTL_E_OVERFLOW;
+        cmdBufferIndex = 0;
+        telegramIndex = 0;
+        lastReadSuccess = 0;
+        uartFlush();  
+        if( uartControlRunCommand( &command, &response ) )
+        {
+          // successfully done
+        }
+        else
+        {
+          // something has gone wrong
+        }
+
+        if( uartSendResponse( &command, &response ) )
+        {
+          // successfully done
+        }
+        else
+        {
+          // something has gone wrong
+        }
+
+        clearTelegram( &command );
+        clearTelegram( &response );
+        memset( controlBuf, '\0', sizeof(controlBuf) );
+
+      }
+    }
   }
   else
   {
-    retVal = false;
+    // incomplete command or single byte action
+    if( cmdBufferIndex > 0 )
+    {
+      // check for single byte command
+      if( command._opcode == 0x05 ) // hangup 
+      {
+        cmdBufferIndex = 0;
+        telegramIndex = 0;
+        lastReadSuccess = 0;
+        cmdCompleted = false;
+        _uartErrorCode = UART_CTL_E_OK;
+        menuStatus = DO_MAIN_MENU;
+        uartFlush();  
+        clearTelegram( &command );
+        clearTelegram( &response );
+        memset( controlBuf, '\0', sizeof(controlBuf) );
+      }
+    }
+
+  }
+
+  if( lastReadSuccess != 0 )
+  {
+    if( millis() - lastReadSuccess >= UART_CTL_TIMEOUT*10 )
+    {
+      cmdBufferIndex = 0;
+      telegramIndex = 0;
+      lastReadSuccess = 0;
+      cmdCompleted = false;
+      _uartErrorCode = UART_CTL_E_TIMEOUT;
+      menuStatus = DO_MAIN_MENU;
+      uartFlush();  
+      clearTelegram( &command );
+      clearTelegram( &response );
+      memset( controlBuf, '\0', sizeof(controlBuf) );
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+//
+//
+#ifdef NODEF
+#define UART_CTL_E_PROTOCOL        -9      // protocol mismatch
+#define UART_CTL_E_NULLP           -8      // null pointer
+#define UART_CTL_E_STATUS          -7      // status field out of range
+#define UART_CTL_E_ARGCNT          -6      // invalid buffer size
+#define UART_CTL_E_OPCODE          -5      // unknown opcode for telegram
+#define UART_CTL_E_CRC             -4      // crc fail for telegram
+#define UART_CTL_E_TIMEOUT         -3      // uart timeout
+#define UART_CTL_E_OVERFLOW        -2      // buffer overflow
+#define UART_CTL_E_UNSPEC          -1      // unspecific error / no add. information
+#define UART_CTL_E_OK               0      // no error
+
+#define UART_CTL_TIMEOUT          500      // 500 ms timeout to read from UART
+
+#define REMOTE_COMMAND_MAX_ARGS    20      // size of arg buffer
+#define UART_CTLBUF_SIZE           32      // 32 byte for UART remote control buffer
+#define REMOTE_COMMAND_HDR_LENGTH   5
+
+
+struct _err_status {
+byte status;
+char *errmsg;
+};
+
+struct _err_status _uart_error[] = {
+{ UART_CTL_E_PROTOCOL, "" },
+{ UART_CTL_E_NULLP,    "" },
+{ UART_CTL_E_STATUS,   "" },
+{ UART_CTL_E_ARGCNT,   "" },
+{ UART_CTL_E_OPCODE,   "" },
+{ UART_CTL_E_CRC,      "" },
+{ UART_CTL_E_TIMEOUT,  "" },
+{ UART_CTL_E_OVERFLOW, "" },
+{ UART_CTL_E_OK,       "" },
+{ UART_CTL_E_UNSPEC,   "" },
+{ 0,                 NULL }
+};
+
+
+
+byte _opcode[] = {
+//
+// system telegrams below 0x30
+//
+0x01,   // get firmware version
+0x02,   // get hardware version
+0x03,   // get protocol version
+0x04,   // telegram contains response data
+0x05,   // quit connection (hangup)
+0x06,   // resend telegram 
+//
+// control telegrams from 0x30
+//
+0x30,   // get 1st sensor id
+0x31,   // get next sensor id
+0x32,   // get temp for 1st sensor
+0x33,   // get temp for next sensor
+0x34,   // get temp for sensor with id
+0x35,   // get data block for 1st sensor
+0x36,   // get data block for next sensor
+0x37,   // get data block for sensor with id
+0x38,   // get resolution for 1st sensor
+0x39,   // get resolution for next sensor
+0x3a,   // get resolution for sensor with id
+0x3b,   // set resolution for 1st sensor
+0x3c,   // set resolution for next sensor
+0x3d,   // set resolution for sensor with id
+0x4e,   // power on 1w bus
+0x4f,   // power off 1w bus
+0x40,   // reset 1w bus
+0x41,   // reset_search 1w bus
+0x42,   // select id on 1W bus
+0x43,   // start conversion parasitic power
+0x44,   // start conversion no parasitic power
+0x45,   // read scratchpad
+0x46,   // run testsequence send results
+0x47,   // run testsequence send summary
+0x48,   // run testsequence discard output
+//
+0xff    // end of opcodes indicator
+};
+
+byte _uartErrorCode;
+
+struct _uart_telegram_ {
+byte _opcode;
+byte _crc8;
+byte _sequence;
+byte _status;
+byte _arg_cnt;
+byte _args[REMOTE_COMMAND_MAX_ARGS];
+};
+// uart_telegram_t, *p_uart_telegram_t;
+
+
+// ----------------------------------------------------------------------
+// byte CRC8(const byte *data, byte len)
+//
+// CRC-8 - based on the CRC8 formulas by Dallas/Maxim
+// code released under the therms of the GNU GPL 3.0 license
+//
+// ----------------------------------------------------------------------
+byte CRC8(const byte *data, byte len) {
+  byte crc = 0x00;
+  while (len--) {
+    byte extract = *data++;
+    for (byte tempI = 8; tempI; tempI--) {
+      byte sum = (crc ^ extract) & 0x01;
+      crc >>= 1;
+      if (sum) {
+        crc ^= 0x8C;
+      }
+      extract >>= 1;
+    }
+  }
+  return crc;
+}
+
+
+void dumpTelegram( struct _uart_telegram_ *p_telegram )
+{
+
+  if( p_telegram != NULL )
+  {
+    Serial.println();
+    Serial.println("Telegram:");
+
+    Serial.print("p_telegram->_opcode: ");
+    Serial.println(p_telegram->_opcode, HEX);
+
+    Serial.print("p_telegram->_crc8: ");
+    Serial.println(p_telegram->_crc8, HEX);
+
+    Serial.print("p_telegram->_sequence: ");
+    Serial.println(p_telegram->_sequence, HEX);
+
+    Serial.print("p_telegram->_status: ");
+    Serial.println(p_telegram->_status, HEX);
+
+    Serial.print("p_telegram->_arg_cnt: ");
+    Serial.println(p_telegram->_arg_cnt, HEX);
+
+    Serial.print("p_telegram->_args: ");
+    for( int i = 0; i < p_telegram->_arg_cnt && 
+                    i < REMOTE_COMMAND_MAX_ARGS; i++ )
+    {
+      Serial.print(p_telegram->_args[i], HEX);
+    }
+
+    Serial.println();
+  }
+}
+
+// ----------------------------------------------------------------------
+// void clearTelegram( struct _uart_telegram_ *p_telegram )
+//
+// set all telegram elements to 0
+// ----------------------------------------------------------------------
+void clearTelegram( struct _uart_telegram_ *p_telegram )
+{
+
+  if( p_telegram != NULL )
+  {
+    p_telegram->_opcode = 0;
+    p_telegram->_crc8 = 0;
+    p_telegram->_sequence = 0;
+    p_telegram->_status = 0;
+    p_telegram->_arg_cnt = 0;
+
+    memset(p_telegram->_args, '\0', REMOTE_COMMAND_MAX_ARGS);
+  }
+}
+
+
+
+
+// void uartControlRunCommand(byte cmdbuf[], int buflen)
+bool uartControlRunCommand( struct _uart_telegram_ *p_command,
+                            struct _uart_telegram_ *p_response )
+{
+  bool retVal = false;
+
+  if( p_command != NULL )
+  {
+    switch( p_command->_opcode )
+    {
+      //
+      // system telegrams below 0x30
+      //
+      case 0x01:   // get firmware version
+      case 0x02:   // get hardware version
+      case 0x03:   // get protocol version
+      case 0x04:   // telegram contains response data
+      case 0x05:   // quit connection (hangup)
+      case 0x06:   // resend telegram 
+      //
+      // control telegrams from 0x30
+      //
+      case 0x30:   // get 1st sensor id
+      case 0x31:   // get next sensor id
+      case 0x32:   // get temp for 1st sensor
+      case 0x33:   // get temp for next sensor
+      case 0x34:   // get temp for sensor with id
+      case 0x35:   // get data block for 1st sensor
+      case 0x36:   // get data block for next sensor
+      case 0x37:   // get data block for sensor with id
+      case 0x38:   // get resolution for 1st sensor
+      case 0x39:   // get resolution for next sensor
+      case 0x3a:   // get resolution for sensor with id
+      case 0x3b:   // set resolution for 1st sensor
+      case 0x3c:   // set resolution for next sensor
+      case 0x3d:   // set resolution for sensor with id
+      case 0x4e:   // power on 1w bus
+      case 0x4f:   // power off 1w bus
+      case 0x40:   // reset 1w bus
+      case 0x41:   // reset_search 1w bus
+      case 0x42:   // select id on 1W bus
+      case 0x43:   // start conversion parasitic power
+      case 0x44:   // start conversion no parasitic power
+      case 0x45:   // read scratchpad
+      case 0x46:   // run testsequence send results
+      case 0x47:   // run testsequence send summary
+      case 0x48:   // run testsequence discard output
+        retVal = true;
+        break;
+      default:
+        _uartErrorCode = UART_CTL_E_OPCODE;
+        break;
+    }
+  }
+  else
+  {
+    _uartErrorCode = UART_CTL_E_NULLP;
   }
 
   return( retVal );
+
 }
+
 
 
 
 void uartControlRun( bool reset )
 {
   static byte controlBuf[UART_CTLBUF_SIZE+1];
-  static int cmdBufferIndex;
+  static int cmdBufferIndex = 0;
+  static int telegramIndex = 0;
   static unsigned long lastReadSuccess;
-  static unsigned long lastCall;
-  static bool cmdCompleted;
+  static bool cmdCompleted = false;
+  static struct _uart_telegram_ command;
+  struct _uart_telegram_ response;
   
   if( Serial.available() )
   {
-    while( Serial.available() && cmdBufferIndex < UART_CTLBUF_SIZE )
+ 
+    if( cmdBufferIndex < UART_CTLBUF_SIZE )
     {
-      controlBuf[cmdBufferIndex++] = Serial.read();
-    }  
+      controlBuf[cmdBufferIndex] = Serial.read();
+      lastReadSuccess = millis();
 
-    lastReadSuccess = millis();
-
-    if( Serial.available() )
-    {
-      cmdBufferIndex = 0;
-      lastCall = 0;
-      lastReadSuccess = 0;
-      cmdCompleted = false;
-      _uartErrorCode = UART_CTL_E_OVERFLOW;
-      menuStatus = DO_MAIN_MENU;
-      uartFlush();  
+      switch( cmdBufferIndex + 1 )
+      {
+        case 1:
+          command._opcode = controlBuf[cmdBufferIndex];
+          break;
+        case 2:
+          command._crc8 = controlBuf[cmdBufferIndex];
+          break;
+        case 3:
+          command._sequence = controlBuf[cmdBufferIndex];
+          break;
+        case 4:
+          command._status = controlBuf[cmdBufferIndex];
+          break;
+        case 5:
+          command._arg_cnt = controlBuf[cmdBufferIndex];
+          break;
+        default:
+          if( (telegramIndex < command._arg_cnt) &&
+              (telegramIndex < REMOTE_COMMAND_MAX_ARGS) )
+          {
+            command._args[telegramIndex++] = controlBuf[cmdBufferIndex];
+          }
+          break;
+      }
+  
+      cmdBufferIndex++;
     }
     else
     {
-      cmdCompleted = uartControlCheckCommand(controlBuf, cmdBufferIndex);
+      byte discardData = Serial.read();
+      lastReadSuccess = millis();
+    }
+  }
+
+  if( cmdBufferIndex >= REMOTE_COMMAND_HDR_LENGTH )
+  {
+    // we have at least a complete header
+
+    if( telegramIndex == command._arg_cnt )
+    {
+      cmdCompleted = true;
       _uartErrorCode = UART_CTL_E_OK;
-    }
-  }
-
-  if( !lastCall )
-  {
-    lastCall = millis();
-    cmdCompleted = false;
-  }
-
-  if( cmdCompleted )
-  {
-
-    uartControlRunCommand(controlBuf, cmdBufferIndex);
-
-    Serial.println();
-    Serial.print("UART CONTROL <");
-    for( int i = 0; i < cmdBufferIndex; i++ )
-    {
-      Serial.print( (char) controlBuf[i] );
-    }
-    Serial.println(">");
-
-    cmdBufferIndex = 0;
-    lastCall = 0;    
-    lastReadSuccess = 0;
-    cmdCompleted = false;
-    _uartErrorCode = UART_CTL_E_OK;
-    menuStatus = DO_MAIN_MENU;
-    uartFlush();  
-  }
-  else
-  {
-    if( lastReadSuccess )
-    {
-      if( millis() - lastReadSuccess >= UART_CTL_TIMEOUT*10 )
+      cmdBufferIndex = 0;
+      telegramIndex = 0;
+      lastReadSuccess = 0;
+      uartFlush();  
+      if( uartControlRunCommand( &command, &response ) )
       {
+        // successfully done
+      }
+      else
+      {
+        // something has gone wrong
+      }
+
+      if( uartSendResponse( &command, &response ) )
+      {
+        // successfully done
+      }
+      else
+      {
+        // something has gone wrong
+      }
+
+      clearTelegram( &command );
+      clearTelegram( &response );
+      memset( controlBuf, '\0', sizeof(controlBuf) );
+
+    }
+    else
+    {
+      if( telegramIndex > command._arg_cnt )
+      {
+        cmdCompleted = true;
+        _uartErrorCode = UART_CTL_E_OVERFLOW;
         cmdBufferIndex = 0;
-        lastCall = 0;
+        telegramIndex = 0;
         lastReadSuccess = 0;
-        cmdCompleted = false;
-        _uartErrorCode = UART_CTL_E_TIMEOUT;
-        menuStatus = DO_MAIN_MENU;
         uartFlush();  
+        if( uartControlRunCommand( &command, &response ) )
+        {
+          // successfully done
+        }
+        else
+        {
+          // something has gone wrong
+        }
+
+        if( uartSendResponse( &command, &response ) )
+        {
+          // successfully done
+        }
+        else
+        {
+          // something has gone wrong
+        }
+
+        clearTelegram( &command );
+        clearTelegram( &response );
+        memset( controlBuf, '\0', sizeof(controlBuf) );
+
       }
     }
   }
-}
-// ------------------------- END UART REMOTE CONTROL HANDLING --------------------------
+  else
+  {
+    // incomplete command or single byte action
+    if( cmdBufferIndex > 0 )
+    {
+      // check for single byte command
+      if( command._opcode == 0x05 ) // hangup 
+      {
+        cmdBufferIndex = 0;
+        telegramIndex = 0;
+        lastReadSuccess = 0;
+        cmdCompleted = false;
+        _uartErrorCode = UART_CTL_E_OK;
+        menuStatus = DO_MAIN_MENU;
+        uartFlush();  
+        clearTelegram( &command );
+        clearTelegram( &response );
+        memset( controlBuf, '\0', sizeof(controlBuf) );
+      }
+    }
 
+  }
+
+  if( lastReadSuccess != 0 )
+  {
+    if( millis() - lastReadSuccess >= UART_CTL_TIMEOUT*10 )
+    {
+      cmdBufferIndex = 0;
+      telegramIndex = 0;
+      lastReadSuccess = 0;
+      cmdCompleted = false;
+      _uartErrorCode = UART_CTL_E_TIMEOUT;
+      menuStatus = DO_MAIN_MENU;
+      uartFlush();  
+      clearTelegram( &command );
+      clearTelegram( &response );
+      memset( controlBuf, '\0', sizeof(controlBuf) );
+    }
+  }
+}
+
+
+
+
+
+
+int uartSendTelegram( struct _uart_telegram_ *pTelegram )
+{
+  int retVal = -1;
+
+  if( pTelegram != NULL )
+  {
+    Serial.write(pTelegram->_opcode);
+    Serial.write(pTelegram->_crc8);
+    Serial.write(pTelegram->_sequence);
+    Serial.write(pTelegram->_status);
+    Serial.write(pTelegram->_arg_cnt);
+    for( int i = 0; i < pTelegram->_arg_cnt;i++ )
+    {
+      Serial.write(pTelegram->_args[i]);
+    }
+  }
+
+  return( retVal );
+
+}
+
+
+void uartConnectionResponse( void )
+{
+  struct _uart_telegram_ response;
+
+  response._opcode =   0x04;
+  response._sequence = 0x01;
+  response._status =   0x00;
+  response._arg_cnt =  0x03;
+
+  response._args[0] = makeVersion( firmwareMajorRelease, firmwareMinorRelease );
+  response._args[1] = makeVersion( protocolMajorRelease, protocolMinorRelease );
+  response._args[2] = makeVersion( hardwareMajorRelease, hardwareMinorRelease );
+
+  response._crc8 = CRC8(response._args, response._arg_cnt);
+
+  uartSendTelegram( &response );
+}
+
+#endif // NODEF
+
+// ------------------------- END UART REMOTE CONTROL HANDLING --------------------------
+//
+#endif // UART_REMOTE_CONTROL
 
 //
 // -------------------------------- UART MENU HANDLING ---------------------------------
@@ -2396,9 +2941,12 @@ void uartMenu( void )
             uartReset2Defaults();
             menuStatus = DO_1WBUS_MENU;
             break;
+#ifdef UART_REMOTE_CONTROL
           case '%':
             menuStatus = DO_UART_CONTROL;
+            uartConnectionResponse();
             break;
+#endif // UART_REMOTE_CONTROL
           default:
             displayUartMenu();
             break;
@@ -2573,9 +3121,11 @@ void uartMenu( void )
         }
       }
       break;
+#ifdef UART_REMOTE_CONTROL
     case DO_UART_CONTROL:
       uartControlRun(false);
       break;
+#endif // UART_REMOTE_CONTROL
     default:
       break;
   }
@@ -3648,23 +4198,4 @@ void loop(void)
 }
 
 /* ------------------------- no needed stuff behind this line -------------------------- */
-
-/*
-
-Der Sketch verwendet 16298 Bytes (53%) des Programmspeicherplatzes. Das Maximum sind 30720 Bytes.
-Globale Variablen verwenden 815 Bytes (39%) des dynamischen Speichers, 1233 Bytes für lokale Variablen verbleiben. Das Maximum sind 2048 Bytes.
-
-Der Sketch verwendet 17712 Bytes (57%) des Programmspeicherplatzes. Das Maximum sind 30720 Bytes.
-Globale Variablen verwenden 827 Bytes (40%) des dynamischen Speichers, 1221 Bytes für lokale Variablen verbleiben. Das Maximum sind 2048 Bytes.
-
-Der Sketch verwendet 17874 Bytes (58%) des Programmspeicherplatzes. Das Maximum sind 30720 Bytes.
-Globale Variablen verwenden 827 Bytes (40%) des dynamischen Speichers, 1221 Bytes für lokale Variablen verbleiben. Das Maximum sind 2048 Bytes.
-
-Der Sketch verwendet 17940 Bytes (58%) des Programmspeicherplatzes. Das Maximum sind 30720 Bytes.
-Globale Variablen verwenden 793 Bytes (38%) des dynamischen Speichers, 1255 Bytes für lokale Variablen verbleiben. Das Maximum sind 2048 Bytes.
-
-Der Sketch verwendet 18242 Bytes (59%) des Programmspeicherplatzes. Das Maximum sind 30720 Bytes.
-Globale Variablen verwenden 621 Bytes (30%) des dynamischen Speichers, 1427 Bytes für lokale Variablen verbleiben. Das Maximum sind 2048 Bytes.
-
-*/
 
