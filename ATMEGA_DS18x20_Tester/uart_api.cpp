@@ -308,8 +308,8 @@ bool uartSendResponse( struct _uart_telegram_ *p_command,
   return( retVal );
 }
 
+#ifndef __i386__
 
-// void uartControlRunCommand(byte cmdbuf[], int buflen)
 bool uartControlRunCommand( struct _uart_telegram_ *p_command,
                             struct _uart_telegram_ *p_response )
 {
@@ -322,46 +322,83 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
       //
       // system telegrams below 0x30
       //
-      case 0x01:   // get firmware version
-      case 0x02:   // get hardware version
-      case 0x03:   // get protocol version
-      case 0x04:   // telegram contains response data
-      case 0x05:   // quit connection (hangup)
-      case 0x06:   // resend telegram 
+      case OPCODE_FIRMWARE_VERSION:                // get firmware version
+        break;
+      case OPCODE_HARDWARE_VERSION:                // get hardware version
+        break;
+      case OPCODE_PROTOCOL_VERSION:                // get protocol version
+        break;
+      case OPCODE_RESPONSE:                        // telegram contains response data
+        break;
+      case OPCODE_HANGUP:                          // quit connection (hangup)
+        break;
+      case OPCODE_RESEND:                          // resend telegram 
+        break;
       //
       // control telegrams from 0x30
       //
-      case 0x30:   // get 1st sensor id
-      case 0x31:   // get next sensor id
-      case 0x32:   // get temp for 1st sensor
-      case 0x33:   // get temp for next sensor
-      case 0x34:   // get temp for sensor with id
-      case 0x35:   // get data block for 1st sensor
-      case 0x36:   // get data block for next sensor
-      case 0x37:   // get data block for sensor with id
-      case 0x38:   // get resolution for 1st sensor
-      case 0x39:   // get resolution for next sensor
-      case 0x3a:   // get resolution for sensor with id
-      case 0x3b:   // set resolution for 1st sensor
-      case 0x3c:   // set resolution for next sensor
-      case 0x3d:   // set resolution for sensor with id
-      case 0x4e:   // power on 1w bus
-      case 0x4f:   // power off 1w bus
-      case 0x40:   // reset 1w bus
-      case 0x41:   // reset_search 1w bus
-      case 0x42:   // select id on 1W bus
-      case 0x43:   // start conversion parasitic power
-      case 0x44:   // start conversion no parasitic power
-      case 0x45:   // read scratchpad
-      case 0x46:   // run testsequence send results
-      case 0x47:   // run testsequence send summary
-      case 0x48:   // run testsequence discard output
+      case OPCODE_CMD_1ST_SENSOR_ID:               // get 1st sensor id
+        break;
+      case OPCODE_CMD_NEXT_SENSOR_ID:              // get next sensor id
+        break;
+      case OPCODE_CMD_1ST_SENSOR_TEMPERATURE:      // get temp for 1st sensor
+        break;
+      case OPCODE_CMD_NEXT_SENSOR_TEMPERATURE:     // get temp for next sensor
+        break;
+      case OPCODE_CMD_SENSOR_TEMPERATURE:          // get temp for sensor with id
+        break;
+      case OPCODE_CMD_1ST_SENSOR_DATA:             // get data block for 1st sensor
+        break;
+      case OPCODE_CMD_NEXT_SENSOR_DATA:            // get data block for next sensor
+        break;
+      case OPCODE_CMD_SENSOR_DATA:                 // get data block for sensor with id
+        break;
+      case OPCODE_CMD_1ST_SENSOR_GET_RESOLUTION:   // get resolution for 1st sensor
+        break;
+      case OPCODE_CMD_NEXT_SENSOR_GET_RESOLUTION:  // get resolution for next sensor
+        break;
+      case OPCODE_CMD_SENSOR_GET_RESOLUTION:       // get resolution for sensor with id
+        break;
+      case OPCODE_CMD_1ST_SENSOR_SET_RESOLUTION:   // set resolution for 1st sensor
+        break;
+      case OPCODE_CMD_NEXT_SENSOR_SET_RESOLUTION:  // set resolution for next sensor
+        break;
+      case OPCODE_CMD_SENSOR_SET_RESOLUTION:       // set resolution for sensor with id
+        break;
+      case OPCODE_CMD_1WBUS_POWER_ON:              // power on 1w bus
+        break;
+      case OPCODE_CMD_1WBUS_POWER_OFF:             // power off 1w bus
+        break;
+      case OPCODE_CMD_1WBUS_RESET:                 // reset 1w bus
+        break;
+      case OPCODE_CMD_1WBUS_RESET_SEARCH:          // reset_search 1w bus
+        break;
+      case OPCODE_CMD_1WBUS_SELECT_ID:             // select id on 1W bus
+        break;
+
+      case OPCODE_CMD_PARASITIC_CONVERSION:        // start conversion parasitic power
+        break;
+      case OPCODE_CMD_NO_PARASITIC_CONVERSION:     // start conversion no parasitic power
+        break;
+      case OPCODE_CMD_READ_SCRATCHPAD:             // read scratchpad
+        break;
+      case OPCODE_CMD_RUN_VERBOSE:                 // run testsequence send results
+        break;
+      case OPCODE_CMD_RUN_SUMMARY:                 // run testsequence send summary
+        break;
+      case OPCODE_CMD_RUN_QUIET:                   // run testsequence discard output
+        break;
+      //
         retVal = true;
         break;
       default:
         _uartErrorCode = UART_CTL_E_OPCODE;
         break;
     }
+    uartMakeDummyResponse( p_command, p_response );
+    uartCompleteTelegram( p_response );
+    uartSendTelegram( p_response );
+
   }
   else
   {
@@ -372,8 +409,14 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
 
 }
 
+void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
+                       struct _uart_telegram_ *p_response )
+{
+  p_response->_args[0] = p_command->_opcode;
+  p_response->_arg_cnt = 1;
+}
 
-
+#endif __i386__
 
 
 #ifndef __i386__

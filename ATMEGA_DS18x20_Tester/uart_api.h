@@ -148,6 +148,8 @@ extern int uartSendTelegram( int fd, struct _uart_telegram_ *pTelegram );
 
 extern void uartConnectionResponse( void );
 
+extern void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
+                       struct _uart_telegram_ *p_response );
 
 
 //
