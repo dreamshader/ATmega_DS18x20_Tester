@@ -217,7 +217,6 @@ bool uartCompleteTelegram( struct _uart_telegram_ *pTelegram )
     }
 
     pTelegram->_sequence = currentSequence++;
-    pTelegram->_status = _uartErrorCode;
 
     retVal = true;
   }
