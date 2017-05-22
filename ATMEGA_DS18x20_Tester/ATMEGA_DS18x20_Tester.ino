@@ -562,10 +562,10 @@ void restoreSettings( void )
 // -------------------------------- END EEPROM SECTION ---------------------------------
 //
 
-byte makeVersion( byte major, byte minor )
-{
-  return( (major << 4) | minor  );
-}
+// byte makeVersion( byte major, byte minor )
+// {
+//   return( (major << 4) | minor  );
+// }
 
 //
 // ----------------------------------- GENERAL SETUP -----------------------------------
@@ -1180,6 +1180,61 @@ void printAddr( byte addr[] )
 }
 
 
+
+
+
+// ---------------------------------------------------------
+// bool getSensorID( bool first, byte sensorID[] )
+//
+// get next sensor id on bus, perform a power on
+// if first flag is set
+// ---------------------------------------------------------
+bool getSensorID( bool first, byte sensorID[] )
+{
+
+  bool retVal = false;
+
+  if( first )
+  {
+    powerOn1W();
+  }
+
+  if(oneWireBus.search(sensorID))
+  {
+    retVal = true;
+  }
+  else
+  {
+    oneWireBus.reset_search();
+    powerOff1W();
+    retVal = false;
+  }
+
+  return( retVal );
+
+}
+
+// ---------------------------------------------------------
+// bool getNextSensorID( byte sensorID[]  )
+//
+// perform a test run if sensor is found
+// ---------------------------------------------------------
+bool getNextSensorID( byte sensorID[]  )
+{
+  return( getSensorID( false, sensorID ) );
+}
+
+
+// ---------------------------------------------------------
+// bool getFirstSensorID( byte sensorID[] )
+//
+// perform a test run if sensor is found
+// ---------------------------------------------------------
+bool getFirstSensorID( byte sensorID[] )
+{
+
+  return( getSensorID( true, sensorID ) );
+}
 
 
 // ---------------------------------------------------------

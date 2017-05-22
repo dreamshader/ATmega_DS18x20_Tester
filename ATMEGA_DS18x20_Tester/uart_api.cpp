@@ -150,6 +150,21 @@ uint8_t currentSequence;
 char uartRdBuffer[128];
 
 
+byte makeVersion( byte major, byte minor )
+{
+  return( (major << 4) | minor  );
+}
+
+byte getSoftwareVersion( void )
+{
+  return( makeVersion( softwareMajorRelease, softwareMinorRelease ));
+}
+
+byte getProtocolVersion( void )
+{
+  return( makeVersion( protocolMajorRelease, protocolMinorRelease ));
+}
+
 
 // ----------------------------------------------------------------------
 // byte CRC8(const byte *data, byte len)
@@ -254,7 +269,7 @@ void dumpTelegram( struct _uart_telegram_ *p_telegram )
 
   if( p_telegram != NULL )
   {
-    printf("Telegram:\n");
+    printf("\n\nTelegram:\n");
     printf("p_telegram->_opcode .: 0x%02x\n", p_telegram->_opcode);
     printf("p_telegram->_crc8 ...: 0x%02x\n", p_telegram->_crc8);
     printf("p_telegram->_sequence: 0x%02x\n", p_telegram->_sequence);
@@ -267,8 +282,26 @@ void dumpTelegram( struct _uart_telegram_ *p_telegram )
     {
       printf("0x%02x ", p_telegram->_args[i]);
     }
-
     printf("\n");
+
+    if( p_telegram->_arg_cnt > 0 )
+    {
+      switch( p_telegram->_args[0] )
+      {
+        case OPCODE_CMD_1ST_SENSOR_ID:
+        case OPCODE_CMD_NEXT_SENSOR_ID:
+          printf(" --- Sensor-ID: ");
+          printf( "%02x-", p_telegram->_args[1] );
+          for ( int i = 7; i > 1; i--)
+          {
+            printf( "%02x", p_telegram->_args[i] );
+          }
+          printf("\n");
+          break;
+        default:
+          break;
+      }
+    }
   }
 }
 
@@ -310,9 +343,50 @@ bool uartSendResponse( struct _uart_telegram_ *p_command,
 
 #ifndef __i386__
 
+extern bool getFirstSensorID( byte addr[]  );
+extern bool getNextSensorID( byte addr[]  );
+
+void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
+                       struct _uart_telegram_ *p_response )
+{
+  p_response->_opcode =   OPCODE_RESPONSE;
+  p_response->_args[0] = p_command->_opcode;
+  p_response->_arg_cnt = 1;
+}
+
+
+void uartMakeAddrResponse( bool opSuccess, byte sensorID[],
+                           struct _uart_telegram_ *p_command,
+                           struct _uart_telegram_ *p_response )
+{
+  p_response->_opcode =   OPCODE_RESPONSE;
+  p_response->_status = ( opSuccess ? 1 : 0 );
+  p_response->_args[0] = p_command->_opcode;
+  p_response->_arg_cnt = 1;
+
+  for( int i = 0; i < 8; i++ )
+  {
+    p_response->_args[i+1] = sensorID[i];
+    p_response->_arg_cnt++;
+  }
+
+}
+
+
+
+
+
 bool uartControlRunCommand( struct _uart_telegram_ *p_command,
                             struct _uart_telegram_ *p_response )
 {
+
+  static byte W1Address[8];
+  static byte data[12];
+  float celsius;
+  byte resolution;
+  long conversionTime;
+  bool opSuccess;
+
   bool retVal = false;
 
   if( p_command != NULL )
@@ -323,82 +397,67 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
       // system telegrams below 0x30
       //
       case OPCODE_FIRMWARE_VERSION:                // get firmware version
-        break;
       case OPCODE_HARDWARE_VERSION:                // get hardware version
-        break;
       case OPCODE_PROTOCOL_VERSION:                // get protocol version
-        break;
       case OPCODE_RESPONSE:                        // telegram contains response data
-        break;
       case OPCODE_HANGUP:                          // quit connection (hangup)
-        break;
       case OPCODE_RESEND:                          // resend telegram 
+        uartMakeDummyResponse( p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
         break;
       //
       // control telegrams from 0x30
       //
       case OPCODE_CMD_1ST_SENSOR_ID:               // get 1st sensor id
+        opSuccess = getFirstSensorID(W1Address);
+        uartMakeAddrResponse( opSuccess, W1Address, p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
         break;
       case OPCODE_CMD_NEXT_SENSOR_ID:              // get next sensor id
+        opSuccess = getNextSensorID(W1Address);
+        uartMakeAddrResponse( opSuccess, W1Address, p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
         break;
       case OPCODE_CMD_1ST_SENSOR_TEMPERATURE:      // get temp for 1st sensor
-        break;
       case OPCODE_CMD_NEXT_SENSOR_TEMPERATURE:     // get temp for next sensor
-        break;
       case OPCODE_CMD_SENSOR_TEMPERATURE:          // get temp for sensor with id
-        break;
       case OPCODE_CMD_1ST_SENSOR_DATA:             // get data block for 1st sensor
-        break;
       case OPCODE_CMD_NEXT_SENSOR_DATA:            // get data block for next sensor
-        break;
       case OPCODE_CMD_SENSOR_DATA:                 // get data block for sensor with id
-        break;
       case OPCODE_CMD_1ST_SENSOR_GET_RESOLUTION:   // get resolution for 1st sensor
-        break;
       case OPCODE_CMD_NEXT_SENSOR_GET_RESOLUTION:  // get resolution for next sensor
-        break;
       case OPCODE_CMD_SENSOR_GET_RESOLUTION:       // get resolution for sensor with id
-        break;
       case OPCODE_CMD_1ST_SENSOR_SET_RESOLUTION:   // set resolution for 1st sensor
-        break;
       case OPCODE_CMD_NEXT_SENSOR_SET_RESOLUTION:  // set resolution for next sensor
-        break;
       case OPCODE_CMD_SENSOR_SET_RESOLUTION:       // set resolution for sensor with id
-        break;
       case OPCODE_CMD_1WBUS_POWER_ON:              // power on 1w bus
-        break;
       case OPCODE_CMD_1WBUS_POWER_OFF:             // power off 1w bus
-        break;
       case OPCODE_CMD_1WBUS_RESET:                 // reset 1w bus
-        break;
       case OPCODE_CMD_1WBUS_RESET_SEARCH:          // reset_search 1w bus
-        break;
       case OPCODE_CMD_1WBUS_SELECT_ID:             // select id on 1W bus
-        break;
 
       case OPCODE_CMD_PARASITIC_CONVERSION:        // start conversion parasitic power
-        break;
       case OPCODE_CMD_NO_PARASITIC_CONVERSION:     // start conversion no parasitic power
-        break;
       case OPCODE_CMD_READ_SCRATCHPAD:             // read scratchpad
-        break;
       case OPCODE_CMD_RUN_VERBOSE:                 // run testsequence send results
-        break;
       case OPCODE_CMD_RUN_SUMMARY:                 // run testsequence send summary
-        break;
       case OPCODE_CMD_RUN_QUIET:                   // run testsequence discard output
-        break;
       //
+        uartMakeDummyResponse( p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
         retVal = true;
         break;
       default:
         _uartErrorCode = UART_CTL_E_OPCODE;
+        uartMakeDummyResponse( p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
         break;
     }
-    uartMakeDummyResponse( p_command, p_response );
-    uartCompleteTelegram( p_response );
-    uartSendTelegram( p_response );
-
   }
   else
   {
@@ -409,14 +468,8 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
 
 }
 
-void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
-                       struct _uart_telegram_ *p_response )
-{
-  p_response->_args[0] = p_command->_opcode;
-  p_response->_arg_cnt = 1;
-}
 
-#endif __i386__
+#endif // __i386__
 
 
 #ifndef __i386__
@@ -448,7 +501,6 @@ int uartSendTelegram( struct _uart_telegram_ *pTelegram )
 int uartSendTelegram( int fd, struct _uart_telegram_ *pTelegram )
 {
   int retVal = -1;
-  int wrLen;
   _uartErrorCode = UART_CTL_E_OK;
 
   if( pTelegram != NULL )
@@ -481,9 +533,9 @@ void uartConnectionResponse( void )
 {
   struct _uart_telegram_ response;
 
-  response._opcode =   0x04;
-  response._sequence = 0x01;
-  response._status =   0x00;
+  response._opcode =   OPCODE_RESPONSE;
+  response._sequence = currentSequence++;
+  response._status =  _uartErrorCode;
   response._arg_cnt =  0x02;
 
   response._args[0] = makeVersion( softwareMajorRelease, softwareMinorRelease );
