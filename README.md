@@ -27,9 +27,11 @@ But this may last some weeks or months because, on the other hand, I want to inc
   When powering the testboard the idle mode is entered. Next two pictures show the appearance of the idle text on a 2004 LCD:
 
 ![alt tag](http://dreamshader.bplaced.net/Images/github/idle1.png) 
+
 First text that is displayed in idle mode. One click starts a test run.
 
 ![alt tag](http://dreamshader.bplaced.net/Images/github/idle2.png) 
+
 Second text. Click twice to enter menu mode.
 
 
