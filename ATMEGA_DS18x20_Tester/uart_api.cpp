@@ -342,8 +342,8 @@ bool uartSendResponse( struct _uart_telegram_ *p_command,
 
 #ifndef __i386__
 
-extern bool getFirstSensorID( byte addr[]  );
-extern bool getNextSensorID( byte addr[]  );
+extern byte getFirstSensorID( byte addr[]  );
+extern byte getNextSensorID( byte addr[]  );
 
 void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
                        struct _uart_telegram_ *p_response )
@@ -354,12 +354,12 @@ void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
 }
 
 
-void uartMakeAddrResponse( bool opSuccess, byte sensorID[],
+void uartMakeAddrResponse( byte opSuccess, byte sensorID[],
                            struct _uart_telegram_ *p_command,
                            struct _uart_telegram_ *p_response )
 {
   p_response->_opcode =   OPCODE_RESPONSE;
-  p_response->_status = ( opSuccess ? 1 : 0 );
+  p_response->_status = opSuccess;
   p_response->_args[0] = p_command->_opcode;
   p_response->_arg_cnt = 1;
 
@@ -384,7 +384,7 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
   float celsius;
   byte resolution;
   long conversionTime;
-  bool opSuccess;
+  byte opSuccess;
 
   bool retVal = false;
 

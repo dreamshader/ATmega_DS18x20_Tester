@@ -567,6 +567,59 @@ void restoreSettings( void )
 //   return( (major << 4) | minor  );
 // }
 
+
+
+
+
+
+
+String LastUpload = "";
+
+void makeTime2(time_t t)
+{
+  int iHour, iMinute, iSecond;
+
+  if( (iHour = hour(t)) < 10 )
+  {
+    LastUpload = "0";
+  }
+  else
+  {
+    LastUpload = String(iHour / 10);
+  }
+  LastUpload += String(iHour % 10);
+
+  if( (iMinute = minute(t)) < 10 )
+  {
+    LastUpload += "0";
+  }
+  else
+  {
+    LastUpload += String(iMinute / 10);
+  }
+  LastUpload += String(iMinute % 10);
+
+  if( (iSecond = second(t)) < 10 )
+  {
+    LastUpload += "0";
+  }
+  else
+  {
+    LastUpload += String(iSecond / 10);
+  }
+  LastUpload += String(iSecond % 10);
+
+
+}
+
+
+
+
+
+
+
+
+
 //
 // ----------------------------------- GENERAL SETUP -----------------------------------
 //
@@ -1184,15 +1237,15 @@ void printAddr( byte addr[] )
 
 
 // ---------------------------------------------------------
-// bool getSensorID( bool first, byte sensorID[] )
+// byte getSensorID( bool first, byte sensorID[] )
 //
 // get next sensor id on bus, perform a power on
 // if first flag is set
 // ---------------------------------------------------------
-bool getSensorID( bool first, byte sensorID[] )
+byte getSensorID( bool first, byte sensorID[] )
 {
 
-  bool retVal = false;
+  byte retVal = 0;
 
   if( first )
   {
@@ -1201,13 +1254,13 @@ bool getSensorID( bool first, byte sensorID[] )
 
   if(oneWireBus.search(sensorID))
   {
-    retVal = true;
+    retVal = 1;
   }
   else
   {
     oneWireBus.reset_search();
     powerOff1W();
-    retVal = false;
+    retVal = 0;
   }
 
   return( retVal );
@@ -1215,22 +1268,22 @@ bool getSensorID( bool first, byte sensorID[] )
 }
 
 // ---------------------------------------------------------
-// bool getNextSensorID( byte sensorID[]  )
+// byte getNextSensorID( byte sensorID[]  )
 //
 // perform a test run if sensor is found
 // ---------------------------------------------------------
-bool getNextSensorID( byte sensorID[]  )
+byte getNextSensorID( byte sensorID[]  )
 {
   return( getSensorID( false, sensorID ) );
 }
 
 
 // ---------------------------------------------------------
-// bool getFirstSensorID( byte sensorID[] )
+// byte getFirstSensorID( byte sensorID[] )
 //
 // perform a test run if sensor is found
 // ---------------------------------------------------------
-bool getFirstSensorID( byte sensorID[] )
+byte getFirstSensorID( byte sensorID[] )
 {
 
   return( getSensorID( true, sensorID ) );
