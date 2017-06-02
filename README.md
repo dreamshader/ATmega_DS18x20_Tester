@@ -23,15 +23,14 @@ But this may last some weeks or months because, on the other hand, I want to inc
  - store settings in EEPROM
 
 **Testmode:**
-When powering the testboard the idle mode is entered. Next two pictures show the appearance of the idle text on a 2004 LCD:
+When powering the testboard the idle mode is entered. Next two pictures show the appearance of the idle text on a 2004 LCD. First text that is displayed in idle mode. One click starts a test run.
   
 ![alt tag](http://dreamshader.bplaced.net/Images/github/idle1.png) 
 
-First text that is displayed in idle mode. One click starts a test run.
+Second text. Click twice to enter menu mode.
 
 ![alt tag](http://dreamshader.bplaced.net/Images/github/idle2.png) 
 
-Second text. Click twice to enter menu mode.
 
 To start a testrun place a DS18x20 sensor to the board and click the dig once. The LCD will show some information of the current sensor e.g. it's ID, temperature, ...
 
@@ -53,17 +52,26 @@ In the LCD menu you may choose on of the following options:
  - Device scan
  - Save settings
  - Set to defaults
- - Exit menu
 
-***Brightness:*** by turning the dig right or left the brightnes of the LCD is increased resp. decreased. This setting may be stored in EEPROM.
+***Brightness:*** by turning the dig right or left the brightnes of the LCD is increased resp. decreased. This setting may be stored in the EEPROM.
 
-***Contrast:*** by turning the dig right or left the contrast of the LCD is increased resp. decreased. This setting may be stored in EEPROM.
+***Contrast:*** by turning the dig right or left the contrast of the LCD is increased resp. decreased. This setting may be stored in the EEPROM.
 *hint: by holding the button for about 5 seconds in idle mode this menu item is entered automatically to give you a chance to adjust contrast even if nothing is readable on the LCD.*
 
-***Swap dig A/B:*** this is useful because there seems to be no standard which pins of the dig are A and B. So it may occur, that these pins are swapped. This setting swaps the pins in the software, too. This setting may be stored in EEPROM.
-hint: you have to restart the tester module to take effect on this setting. Don't forget to save the setting first.
+***Swap dig A/B:*** this is useful because there seems to be no standard which pins of the dig are A and B. So it may occur, that these pins are swapped. This setting swaps the pins in the software, too. This setting may be stored in the EEPROM.
+hint: to take effect for this setting a powercycle of the module is required. Don't forget to save the setting first.
 
  ***1W bus:*** this choice enters a small submenu with options "power on" and "power off" the bus.  
+
+***Power safe mode:*** this has no effect, yet. It's an idea for further enhancement.
+
+***Device scan:*** searches the first Device on the 1 wire bus. 
+
+***Save settings:*** store settings to the EEPROM to make them permanent.
+Note: all changes, except the contrast settings if entered in immediate mode (by holding the button for about 5 seconds) are only used until powering off the module. It's recommended you save changes made to EEPROM. 
+
+***Set to defaults:*** all settings are set to factory defaults. 
+
 
 
 > Written with [StackEdit](https://stackedit.io/).
