@@ -1,6 +1,6 @@
 # ATmega_DS18x20_Tester
 
-**Firmware for Sensor Tester by FSA**
+<p align="center">**Firmware for Sensor Tester by FSA**</p>
 
-![alt tag](http://dreamshader.bplaced.net/Images/github/main.png)
+[center] ![alt tag](http://dreamshader.bplaced.net/Images/github/main.png)
 
