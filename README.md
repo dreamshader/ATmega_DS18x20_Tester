@@ -1,4 +1,7 @@
-# ATmega_DS18x20_Tester
+
+
+**ATmega_DS18x20_Tester**
+=====================
 
 **Firmware for Sensor Tester by FSA**
 
@@ -12,23 +15,34 @@ Current hardware has a rotary encoder (dig) instead of the button, an ATMega328P
 I'll try to work on the code to reduce size of resulting flash file to fit in an ATMega8.
 But this may last some weeks or months because, on the other hand, I want to increase functionality of the firmware.
 
-Firmware features:
-  
+**Firmware features:**
 
+ - supports either 1602 or 2004 LCD, selectable by soldered jumper
+ - has a shortcut for "blind" adjusting LCD contrast
+ - multilevel menu on LCD or over UART connection 
+ - store settings in EEPROM
 
+**Description:**
+*Testmode:*
+  When powering the testboard the idle mode is entered. Next two pictures show the appearance of the idle text on a 2004 LCD:
+
+![alt tag](http://dreamshader.bplaced.net/Images/github/idle1.png) 
+First text that is displayed in idle mode. One click starts a test run.
+
+![alt tag](http://dreamshader.bplaced.net/Images/github/idle2.png) 
+Second text. Click twice to enter menu mode.
 
 
 ![alt tag](http://dreamshader.bplaced.net/Images/github/main.png) 
 
 ![alt tag](http://dreamshader.bplaced.net/Images/github/test.png) 
 
-![alt tag](http://dreamshader.bplaced.net/Images/github/idle1.png) 
 
-![alt tag](http://dreamshader.bplaced.net/Images/github/idle2.png) 
+
+
 
 
 
 
 
 > Written with [StackEdit](https://stackedit.io/).
-
