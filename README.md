@@ -43,7 +43,7 @@ Clicking twice in idle mode will take you in menu mode:
 **Note:** from this point there are no more pictures, yet. The following information is subject of change while enhancing the software.
 
 **LCD menu mode:**
-In the LCD menu you may choose on of the following options:
+In the LCD menu you may choose one of the following options:
  - Brightness
  - Contrast
  - Swap dig A/B
@@ -53,25 +53,51 @@ In the LCD menu you may choose on of the following options:
  - Save settings
  - Set to defaults
 
-***Brightness:*** by turning the dig right or left the brightnes of the LCD is increased resp. decreased. This setting may be stored in the EEPROM.
+***Brightness:*** by turning the dig right or left the brightnes of the LCD is increased resp. decreased. This setting may be stored in the EEPROM by "Save setting".
 
-***Contrast:*** by turning the dig right or left the contrast of the LCD is increased resp. decreased. This setting may be stored in the EEPROM.
+***Contrast:*** by turning the dig right or left the contrast of the LCD is increased resp. decreased. This setting may be stored in the EEPROM by "Save setting".
 *hint: by holding the button for about 5 seconds in idle mode this menu item is entered automatically to give you a chance to adjust contrast even if nothing is readable on the LCD.*
 
-***Swap dig A/B:*** this is useful because there seems to be no standard which pins of the dig are A and B. So it may occur, that these pins are swapped. This setting swaps the pins in the software, too. This setting may be stored in the EEPROM.
+***Swap dig A/B:*** this is useful because there seems to be no standard which pins of the dig are A and B. So it may occur, that these pins are swapped. This setting swaps the pins in the software, too. This setting may be stored in the EEPROM by "Save setting".
 hint: to take effect for this setting a powercycle of the module is required. Don't forget to save the setting first.
 
- ***1W bus:*** this choice enters a small submenu with options "power on" and "power off" the bus.  
+ ***1W bus:*** this choice enters a small submenu with options "power on" and "power off" the bus. You may notice that the LED indicating bus power will change its status.
 
 ***Power safe mode:*** this has no effect, yet. It's an idea for further enhancement.
 
-***Device scan:*** searches the first Device on the 1 wire bus. 
+***Device scan:*** searches the first Device on the 1 wire bus and display information about it.
 
 ***Save settings:*** store settings to the EEPROM to make them permanent.
 Note: all changes, except the contrast settings if entered in immediate mode (by holding the button for about 5 seconds) are only used until powering off the module. It's recommended you save changes made to EEPROM. 
 
-***Set to defaults:*** all settings are set to factory defaults. 
+***Set to defaults:*** all settings are set to factory defaults. The values are used only until next powercycle. To make them permanent you have to select "Save setting" before powerdown the module. 
 
+**UART menu mode:**
+If you connect the UART pins, that are accessible on the module, to e.g. an USB<->PL2303 Adapter, you will get the same menu items in your terminal program. Connection parameters are 38400 8N1.
+Because there are no size limits of any display, some selections give more information.
+Note, that all input has to be done by a keyboard. Encoder changes have no effect to the UART Menu.
+hint: the idea was to have access to all settings and options even no display is connected or text on the LCD is not readable for some reasons.
+
+**Future features:**
+
+ - setup sensor resolution via menu (serial & LCD)
+ - reset 1W bus via menu (serial & LCD)
+ - reset search via menu (serial & LCD)
+ - output crc and crc-info in device scan/sensor test
+ - "click" hint in brightness and contrast submenu
+ - display message if no sensor in testrun  found
+ - display message that dig pins are swapped
+ - serial output degree sign in minicom
+
+**Creating flash file:**
+
+You need an arduino IDE with "Open hardware.ro" bords extension. This is fount at http://openhardware.ro/boards/package_openhardwarero_index.json
+Arduino IDE should work from Version 1.6.9 and up.
+An additional library for encoder handling, the Click-Encoder-Lib, is needed: https://github.com/0xPIT/encoder
+Now you can create and flash the image.
+
+Have fun,
+-ds-
 
 
 > Written with [StackEdit](https://stackedit.io/).
