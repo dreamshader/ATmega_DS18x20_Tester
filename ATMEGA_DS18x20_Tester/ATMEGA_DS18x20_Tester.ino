@@ -571,55 +571,6 @@ void restoreSettings( void )
 
 
 
-
-
-String LastUpload = "";
-
-void makeTime2(time_t t)
-{
-  int iHour, iMinute, iSecond;
-
-  if( (iHour = hour(t)) < 10 )
-  {
-    LastUpload = "0";
-  }
-  else
-  {
-    LastUpload = String(iHour / 10);
-  }
-  LastUpload += String(iHour % 10);
-
-  if( (iMinute = minute(t)) < 10 )
-  {
-    LastUpload += "0";
-  }
-  else
-  {
-    LastUpload += String(iMinute / 10);
-  }
-  LastUpload += String(iMinute % 10);
-
-  if( (iSecond = second(t)) < 10 )
-  {
-    LastUpload += "0";
-  }
-  else
-  {
-    LastUpload += String(iSecond / 10);
-  }
-  LastUpload += String(iSecond % 10);
-
-
-}
-
-
-
-
-
-
-
-
-
 //
 // ----------------------------------- GENERAL SETUP -----------------------------------
 //
