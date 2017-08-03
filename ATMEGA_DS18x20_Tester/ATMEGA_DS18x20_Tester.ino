@@ -1219,29 +1219,6 @@ byte getSensorID( bool first, byte sensorID[] )
 }
 
 // ---------------------------------------------------------
-// byte getNextSensorID( byte sensorID[]  )
-//
-// perform a test run if sensor is found
-// ---------------------------------------------------------
-byte getNextSensorID( byte sensorID[]  )
-{
-  return( getSensorID( false, sensorID ) );
-}
-
-
-// ---------------------------------------------------------
-// byte getFirstSensorID( byte sensorID[] )
-//
-// perform a test run if sensor is found
-// ---------------------------------------------------------
-byte getFirstSensorID( byte sensorID[] )
-{
-
-  return( getSensorID( true, sensorID ) );
-}
-
-
-// ---------------------------------------------------------
 // void doScan( void )
 //
 // perform a test run if sensor is found
@@ -2021,6 +1998,33 @@ void uartScan1W( void )
  
   Serial.println( "Scan 1W bus ..." );
 
+
+
+  while ( oneWireBus.search(W1Address))
+  {
+
+
+    Serial.println();
+    Serial.print("Device ");
+
+    // display address
+    // e.g. 10-00080278c4d6  
+    //      28-00000629aa92
+    Serial.print( W1Address[0], HEX);
+    Serial.print("-");
+    for ( int i = 6; i > 0; i--)
+    {
+      if( W1Address[i] < 0x10 )
+      {
+        Serial.print("0");
+      }
+      Serial.print( W1Address[i], HEX);
+    }
+
+  }
+
+
+
  
   collect1WInfo(W1Address, data, &celsius, &resolution, &conversionTime);
 
@@ -2441,6 +2445,46 @@ void uartControlRun( bool reset )
     }
   }
 }
+
+// ---------------------------------------------------------
+// byte getNextSensorID( byte sensorID[]  )
+//
+// locate next device on bus
+// ---------------------------------------------------------
+byte getNextSensorID( byte sensorID[]  )
+{
+  return( getSensorID( false, sensorID ) );
+}
+
+// ---------------------------------------------------------
+// byte getFirstSensorID( byte sensorID[] )
+//
+// locate first device on 1W bus
+// ---------------------------------------------------------
+byte getFirstSensorID( byte sensorID[] )
+{
+
+  return( getSensorID( true, sensorID ) );
+}
+
+byte getFirstSensorTemp( byte sensorID[] )
+{
+return( 0 );
+}
+
+byte getNextSensorTemp( byte sensorID[] )
+{
+return( 0 );
+}
+
+byte getSensorTemp( byte sensorID[] )
+{
+return( 0 );
+}
+
+
+
+
 
 //
 // ------------------------- END UART REMOTE CONTROL HANDLING --------------------------

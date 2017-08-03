@@ -344,6 +344,10 @@ bool uartSendResponse( struct _uart_telegram_ *p_command,
 
 extern byte getFirstSensorID( byte addr[]  );
 extern byte getNextSensorID( byte addr[]  );
+extern byte getFirstSensorTemp( byte sensorID[] );
+extern byte getNextSensorTemp( byte sensorID[] );
+extern byte getSensorTemp( byte addr[] );
+
 
 void uartMakeDummyResponse( struct _uart_telegram_ *p_command,
                        struct _uart_telegram_ *p_response )
@@ -421,8 +425,24 @@ bool uartControlRunCommand( struct _uart_telegram_ *p_command,
         uartSendTelegram( p_response );
         break;
       case OPCODE_CMD_1ST_SENSOR_TEMPERATURE:      // get temp for 1st sensor
+        opSuccess = getFirstSensorTemp( W1Address );
+        uartMakeAddrResponse( opSuccess, W1Address, p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
+        break;
       case OPCODE_CMD_NEXT_SENSOR_TEMPERATURE:     // get temp for next sensor
+        opSuccess = getNextSensorTemp( W1Address );
+        uartMakeAddrResponse( opSuccess, W1Address, p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
+        break;
       case OPCODE_CMD_SENSOR_TEMPERATURE:          // get temp for sensor with id
+        opSuccess = getSensorTemp( W1Address );
+        uartMakeAddrResponse( opSuccess, W1Address, p_command, p_response );
+        uartCompleteTelegram( p_response );
+        uartSendTelegram( p_response );
+        break;
+
       case OPCODE_CMD_1ST_SENSOR_DATA:             // get data block for 1st sensor
       case OPCODE_CMD_NEXT_SENSOR_DATA:            // get data block for next sensor
       case OPCODE_CMD_SENSOR_DATA:                 // get data block for sensor with id
